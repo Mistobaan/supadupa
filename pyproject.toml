@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "supadupa"
+version = "0.1.0"
+description = "A professional deduplication tool for massively large language models dataset"
+authors = ["Fabrizio Milo <mistobaan@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+black = "^20.8b1"
+flake8 = "^6.0.0"
+mypy = "^0.790"
+pytest = "^6.1.2"
+flakehell = "*"
+
+[tool.poetry.scripts]
+test = "pytest"
+
+[tool.black]
+py38 = true
+include = '\.pyi?$'
+line_length = 88
+
+[tool.isort]
+multi_line_output = 3
+line_length = 88
+include_trailing_comma = true
+
+[tool.flake8]
+max-line-length = 88
+
+[tool.flakehell]
+exclude = ["README.rst", "README.md"]
+format = "colored"
+max_line_length = 88
+show_source = true
+whitelist = "../../allowlist.txt"
+
+[tool.flakehell.plugins]
+flake8-bandit = ["+*", "-S322"]
+flake8-bugbear = ["+*"]
+flake8-builtins = ["+*"]
+flake8-comprehensions = ["+*"]
+flake8-darglint = ["+*"]
+flake8-docstrings = ["+*"]
+flake8-eradicate = ["+*"]
+flake8-isort = ["+*"]
+flake8-mutable = ["+*"]
+flake8-pytest-style = ["+*"]
+flake8-spellcheck = ["+*"]
+mccabe = ["+*"]
+pep8-naming = ["+*"]
+pycodestyle = ["+*"]
+pyflakes = ["+*"]
+pylint = ["+*"]
