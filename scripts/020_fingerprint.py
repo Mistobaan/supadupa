@@ -4,12 +4,22 @@ import logging
 import pickle
 import re
 import struct
-from typing import Any, Dict, List, Tuple
+from typing import List
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+NON_ALPHA = re.compile(r"[^a-zA-Z0-9]")
+
+
+def do_chunk(doc: str) -> List[str]:
+    return NON_ALPHA.split(doc)
+
+
+def un_chunk(chunks: List[str]) -> str:
+    return " ".join(chunks).encode("utf-8")
 
 
 def np64array(int_array):
@@ -46,78 +56,6 @@ def sha1_hash32(data: bytes) -> int:
     return struct.unpack("<I", top4bytes)[0]
 
 
-def compute_hash_signatures(
-    document: str,
-    idx: int,
-    num_perm: int,
-    ngram_size: int,
-    hashranges: List[Tuple[int, int]],
-    permutations: np.ndarray,
-) -> Dict[str, Any]:
-    """
-    Parameters
-    ----------
-    content : str
-        The content to be embedded.
-    idx : int
-        The index of the content.
-    num_perm : int
-        The number of permutations.
-    ngram_size : int
-        The size of n-grams.
-    hashranges : List[Tuple[int, int]]
-        The ranges of hash values.
-    permutations : np.ndarray
-        The permutations for the minhash.
-    """
-    SEED = 42
-    NON_ALPHA = re.compile("[^A-Za-z_0-9]")
-    RNG = np.random.RandomState(SEED)
-    MAX_HASH = np.uint64((1 << 32) - 1)
-    MERSENNE_PRIME = np.uint64((1 << 61) - 1)
-    PERMUTATIONS = np.array(
-        [
-            (
-                RNG.randint(1, MERSENNE_PRIME, dtype=np.uint64),
-                RNG.randint(0, MERSENNE_PRIME, dtype=np.uint64),
-            )
-            for _ in range(num_perm)
-        ],
-        dtype=np.uint64,
-    ).T
-
-    hashvalues = np.ones(num_perm, dtype=np.uint64) * MAX_HASH
-    # [MAX_HASH, MAX_HASH, .... , num_perm]
-    # 1. split the content with non alpha numeric char
-    # 2. create an ngram from the content_chunks to create a tokens SET
-    # 3. FOR EACH token in the SET create a hash (hv)
-    # 4.
-    chunks = NON_ALPHA.split(document)
-    content_as_ngram = {
-        " ".join(ngram)  # TODO: are we losing data (punctuation) here ??
-        for ngram in ngrams(chunks, ngram_size)
-    }
-    hv = np64array([sha1_hash32(token.encode("utf-8")) for token in content_as_ngram])
-    a, b = permutations
-    phv = np.bitwise_and(
-        ((hv * np.tile(a, (len(hv), 1)).T).T + b) % MERSENNE_PRIME, MAX_HASH
-    )  # noqa: E501
-    hashvalues = np.vstack([phv, hashvalues]).min(axis=0)
-    Hs = [bytes(hashvalues[start:end].byteswap().data) for start, end in hashranges]
-    return Hs
-
-
-NON_ALPHA = re.compile(r"[^a-zA-Z0-9]")
-
-
-def do_chunk(doc: str) -> List[str]:
-    return NON_ALPHA.split(doc)
-
-
-def un_chunk(chunks: List[str]) -> str:
-    return " ".join(chunks).encode("utf-8")
-
-
 def create_hash_vector(
     document: str,
     ngram_size: int,
@@ -141,6 +79,14 @@ def create_hash_vector(
 def apply_hash_functions(permutations, doc_hash_vector_np, hashvalues, hashranges):
     # Get permutation parameters
     a, b = permutations
+    # SEED = 42
+    # MERSENNE_TWISTER_RNG = np.random.RandomState(SEED)
+    # Container for the slow Mersenne Twister pseudo-random number generator.
+    # Consider using a different BitGenerator with the Generator container instead.
+    # TODO: USE NEW RANDOM GENERATION CODE FOR *SPEED*
+
+    MAX_HASH = np.uint64((1 << 32) - 1)
+    MERSENNE_PRIME = np.uint64((1 << 61) - 1)
 
     # Apply permutation to the hash values and take the bitwise AND with MAX_HASH
     permuted_hash_values = np.bitwise_and(
